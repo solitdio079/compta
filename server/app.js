@@ -19,7 +19,8 @@ const {
 const PORT = process.env.PORT
 
 const allowedOrigins = [
-    "https://conpta.bysolitdio.com",
+    "https://compta.bysolitdio.com",
+    "https://api-compta.bysolitdio.com",
     "http://localhost:5173",
     "http://localhost:5174",
 ]
