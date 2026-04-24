@@ -5,13 +5,26 @@ export default function Hero() {
     const { t } = useI18n();
 
     return (
-        <section className="relative bg-base-200/50 py-20 px-4">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 -z-10"></div>
+        <section className="relative isolate overflow-hidden bg-base-200/50 py-20 px-4">
+            <div
+                className="absolute inset-0 -z-10 bg-cover bg-center"
+                style={{
+                    backgroundImage:
+                        "url(https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=2400&q=80)",
+                }}
+            />
+            <div className="absolute inset-0 -z-10 bg-white/85"></div>
+            <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 to-secondary/10"></div>
             <div className="container mx-auto max-w-4xl text-center">
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-base-content mb-6">
-                    {t("heroTitle")} <span className="text-primary">{t("heroTitleAccent")}</span>
+                    <span className="inline-block animate-[hero-slide-up_700ms_ease-out_both]">
+                        {t("heroTitle")}{" "}
+                    </span>
+                    <span className="inline-block text-primary animate-[hero-slide-up_700ms_ease-out_120ms_both]">
+                        {t("heroTitleAccent")}
+                    </span>
                 </h1>
-                <p className="text-lg md:text-xl text-base-content/70 mb-8 max-w-2xl mx-auto">
+                <p className="text-lg md:text-xl text-base-content/70 mb-8 max-w-2xl mx-auto animate-[hero-fade-in_800ms_ease-out_220ms_both]">
                     {t("heroDescription")}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
