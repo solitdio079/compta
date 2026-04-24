@@ -6,4 +6,7 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
+  css: {
+    postcss: "./postcss.config.mjs",
+  },
 });

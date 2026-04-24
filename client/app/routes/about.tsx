@@ -25,34 +25,34 @@ export default function About() {
             <div className="p-6 text-base-content/80">
               <div className="space-y-4">
                 <p>
-                  Compta is a simple accounting companion built to help you keep control of your day-to-day activity.
+                  {t("aboutIntro")}
                 </p>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="bg-base-300/10 rounded-lg p-4">
                     <div className="flex items-center gap-2 font-semibold">
                       <span className="icon-[tabler--car] size-5 text-primary"></span>
-                      Trips
+                      {t("aboutTripsTitle")}
                     </div>
-                    <p className="text-sm mt-2 text-base-content/70">Track trip income by date and keep useful notes.</p>
+                    <p className="text-sm mt-2 text-base-content/70">{t("aboutTripsDesc")}</p>
                   </div>
                   <div className="bg-base-300/10 rounded-lg p-4">
                     <div className="flex items-center gap-2 font-semibold">
                       <span className="icon-[tabler--receipt] size-5 text-primary"></span>
-                      Expenses
+                      {t("aboutExpensesTitle")}
                     </div>
-                    <p className="text-sm mt-2 text-base-content/70">Record expenses, categorize them, and filter by dates.</p>
+                    <p className="text-sm mt-2 text-base-content/70">{t("aboutExpensesDesc")}</p>
                   </div>
                   <div className="bg-base-300/10 rounded-lg p-4">
                     <div className="flex items-center gap-2 font-semibold">
                       <span className="icon-[tabler--calendar-stats] size-5 text-primary"></span>
-                      Reports
+                      {t("aboutReportsTitle")}
                     </div>
-                    <p className="text-sm mt-2 text-base-content/70">See daily net results and export monthly reports to Excel.</p>
+                    <p className="text-sm mt-2 text-base-content/70">{t("aboutReportsDesc")}</p>
                   </div>
                 </div>
 
                 <p>
-                  Designed with a modern UI and built for speed, Compta lets you focus on decisions—not spreadsheets.
+                  {t("aboutOutro")}
                 </p>
               </div>
             </div>

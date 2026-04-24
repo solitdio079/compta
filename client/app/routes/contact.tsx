@@ -1,5 +1,6 @@
 import Navbar from "~/components/Navbar";
 import Footer from "~/components/Footer";
+import { useI18n } from "~/i18n";
 
 export function meta() {
   return [
@@ -9,6 +10,8 @@ export function meta() {
 }
 
 export default function Contact() {
+  const { t } = useI18n();
+
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
@@ -19,40 +22,39 @@ export default function Contact() {
               <div className="flex items-center gap-3">
                 <span className="icon-[tabler--mail] size-7 text-primary"></span>
                 <div>
-                  <h1 className="text-2xl font-bold">Contact Us</h1>
-                  <p className="text-base-content/70">We’d love to hear from you.</p>
+                  <h1 className="text-2xl font-bold">{t("contactTitle")}</h1>
+                  <p className="text-base-content/70">{t("contactSubtitle")}</p>
                 </div>
               </div>
             </div>
 
             <div className="p-6 grid gap-8 md:grid-cols-2">
               <div className="space-y-4">
-                <h2 className="text-lg font-semibold">How we can help</h2>
+                <h2 className="text-lg font-semibold">{t("contactHelpTitle")}</h2>
                 <p className="text-base-content/80">
-                  Questions about your reports, Excel exports, or how to best track your trips and expenses? Send us a message and we’ll
-                  get back to you.
+                  {t("contactHelpBody")}
                 </p>
 
                 <div className="grid gap-3">
                   <div className="flex items-center gap-3">
                     <span className="icon-[tabler--clock] size-5 text-primary"></span>
-                    <span className="text-base-content/80">Mon–Fri, 9:00–18:00</span>
+                    <span className="text-base-content/80">{t("contactHours")}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="icon-[tabler--map-pin] size-5 text-primary"></span>
-                    <span className="text-base-content/80">Remote-first</span>
+                    <span className="text-base-content/80">{t("contactLocation")}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="icon-[tabler--shield-check] size-5 text-primary"></span>
-                    <span className="text-base-content/80">We never share your data</span>
+                    <span className="text-base-content/80">{t("contactPrivacy")}</span>
                   </div>
                 </div>
               </div>
 
               <form className="grid gap-5">
                 <div>
-                  <label className="label-text" htmlFor="name">Name</label>
-                  <input id="name" type="text" className="input input-bordered w-full" placeholder="Your name" />
+                  <label className="label-text" htmlFor="name">{t("name")}</label>
+                  <input id="name" type="text" className="input input-bordered w-full" placeholder={t("name")} />
                 </div>
 
                 <div>
@@ -61,12 +63,12 @@ export default function Contact() {
                 </div>
 
                 <div>
-                  <label className="label-text" htmlFor="subject">Subject</label>
+                  <label className="label-text" htmlFor="subject">{t("subject")}</label>
                   <input id="subject" type="text" className="input input-bordered w-full" placeholder="How can we help?" />
                 </div>
 
                 <div>
-                  <label className="label-text" htmlFor="message">Message</label>
+                  <label className="label-text" htmlFor="message">{t("message")}</label>
                   <textarea
                     id="message"
                     className="textarea textarea-bordered w-full min-h-32"
@@ -77,7 +79,7 @@ export default function Contact() {
                 <div className="flex justify-end">
                   <button type="button" className="btn btn-primary">
                     <span className="icon-[tabler--send] size-5"></span>
-                    Send Message
+                    {t("sendMessage")}
                   </button>
                 </div>
               </form>

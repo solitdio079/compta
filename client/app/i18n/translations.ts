@@ -92,6 +92,29 @@ export const translations = {
         to: "To",
         filter: "Filter",
         clear: "Clear",
+
+        // About
+        aboutIntro: "Compta is a simple accounting companion built to help you keep control of your day-to-day activity.",
+        aboutTripsTitle: "Trips",
+        aboutTripsDesc: "Track trip income by date and keep useful notes.",
+        aboutExpensesTitle: "Expenses",
+        aboutExpensesDesc: "Record expenses, categorize them, and filter by dates.",
+        aboutReportsTitle: "Reports",
+        aboutReportsDesc: "See daily net results and export monthly reports to Excel.",
+        aboutOutro: "Designed with a modern UI and built for speed, Compta lets you focus on decisions—not spreadsheets.",
+
+        // Contact
+        contactTitle: "Contact Us",
+        contactSubtitle: "We’d love to hear from you.",
+        contactHelpTitle: "How we can help",
+        contactHelpBody: "Questions about your reports, Excel exports, or how to best track your trips and expenses? Send us a message and we’ll get back to you.",
+        contactHours: "Mon–Fri, 9:00–18:00",
+        contactLocation: "Remote-first",
+        contactPrivacy: "We never share your data",
+        name: "Name",
+        subject: "Subject",
+        message: "Message",
+        sendMessage: "Send Message",
     },
     fr: {
         // Navbar
@@ -186,6 +209,29 @@ export const translations = {
         to: "Au",
         filter: "Filtrer",
         clear: "Effacer",
+
+        // About
+        aboutIntro: "Compta est un compagnon de comptabilité simple conçu pour vous aider à garder le contrôle de votre activité au quotidien.",
+        aboutTripsTitle: "Voyages",
+        aboutTripsDesc: "Suivez les revenus des voyages par date et ajoutez des notes utiles.",
+        aboutExpensesTitle: "Dépenses",
+        aboutExpensesDesc: "Enregistrez vos dépenses, catégorisez-les et filtrez par dates.",
+        aboutReportsTitle: "Rapports",
+        aboutReportsDesc: "Consultez le net quotidien et exportez les rapports mensuels en Excel.",
+        aboutOutro: "Avec une interface moderne et rapide, Compta vous aide à vous concentrer sur vos décisions — pas sur les tableurs.",
+
+        // Contact
+        contactTitle: "Contactez-nous",
+        contactSubtitle: "Nous serions ravis de vous lire.",
+        contactHelpTitle: "Comment nous pouvons aider",
+        contactHelpBody: "Des questions sur vos rapports, exports Excel, ou sur la meilleure façon de suivre vos voyages et dépenses ? Envoyez-nous un message et nous vous répondrons.",
+        contactHours: "Lun–Ven, 9:00–18:00",
+        contactLocation: "Télétravail",
+        contactPrivacy: "Nous ne partageons jamais vos données",
+        name: "Nom",
+        subject: "Sujet",
+        message: "Message",
+        sendMessage: "Envoyer",
     },
 } as const;
 
