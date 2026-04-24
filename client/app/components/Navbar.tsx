@@ -1,7 +1,9 @@
 import { useI18n, type Language } from "~/i18n";
+import { useAuth } from "~/lib/auth";
 
 export default function Navbar() {
     const { language, setLanguage, t } = useI18n();
+    const { state, logout } = useAuth();
 
     const toggleLanguage = () => {
         setLanguage(language === "en" ? "fr" : "en");
@@ -47,6 +49,20 @@ export default function Navbar() {
                         <li><a href="/contact" className="hover:text-primary">{t("contact")}</a></li>
                         <li><a href="/careers" className="hover:text-primary">{t("careers")}</a></li>
                         <li><a href="/expenses" className="hover:text-primary">{t("expenses")}</a></li>
+                        {state.status === "ready" && state.authenticated ? (
+                            <li>
+                                <button
+                                    type="button"
+                                    onClick={() => void logout()}
+                                    className="btn btn-sm btn-outline"
+                                >
+                                    {t("logout")}
+                                    {state.user.isAdmin ? <span className="badge badge-primary ml-2">{t("admin")}</span> : null}
+                                </button>
+                            </li>
+                        ) : (
+                            <li><a href="/login" className="hover:text-primary">{t("login")}</a></li>
+                        )}
                         <li className="max-md:hidden">
                             <button 
                                 onClick={toggleLanguage}

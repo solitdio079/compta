@@ -5,6 +5,7 @@ import { useI18n } from "~/i18n";
 import { format, parseISO, isValid } from "date-fns";
 import { enUS, fr } from "date-fns/locale";
 import { apiUrl } from "~/lib/api";
+import { useAuth } from "~/lib/auth";
 
 type Expense = {
   id: number;
@@ -23,6 +24,7 @@ export function meta() {
 
 export default function Expenses() {
   const { t, language } = useI18n();
+  const { state } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -49,7 +51,7 @@ export default function Expenses() {
         ? `${apiUrl("/api/expenses")}?${params.toString()}`
         : apiUrl("/api/expenses");
 
-      const response = await fetch(url);
+      const response = await fetch(url, { credentials: "include" });
       if (!response.ok) throw new Error("Failed to fetch expenses");
       const data = await response.json();
       setExpenses(data);
@@ -61,8 +63,10 @@ export default function Expenses() {
   };
 
   useEffect(() => {
+    if (state.status !== "ready") return;
+    if (!state.authenticated) return;
     void loadExpenses();
-  }, []);
+  }, [state.status, state.authenticated]);
 
   useEffect(() => {
     if (!from || !to) return;
@@ -75,6 +79,7 @@ export default function Expenses() {
     try {
       const response = await fetch(apiUrl(`/api/expenses/${id}`), {
         method: "DELETE",
+        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to delete expense");
       await loadExpenses(from || undefined, to || undefined);
@@ -95,6 +100,7 @@ export default function Expenses() {
       const response = await fetch(apiUrl(`/api/expenses/${editing.id}`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           expense_date: editing.expense_date,
           category: editing.category,
@@ -113,6 +119,41 @@ export default function Expenses() {
     }
   };
 
+  if (state.status !== "ready") {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-1 py-10 px-4">
+          <div className="container mx-auto">
+            <div className="flex items-center justify-center py-10">
+              <span className="loading loading-spinner loading-lg"></span>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!state.authenticated) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-1 py-10 px-4">
+          <div className="container mx-auto">
+            <div className="alert alert-warning">
+              <span className="icon-[tabler--lock] size-5"></span>
+              <span>{t("loginRequiredExpenses")}</span>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const isAdmin = state.user.isAdmin;
+
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
@@ -124,10 +165,12 @@ export default function Expenses() {
               <span className="icon-[tabler--receipt] size-7 text-primary"></span>
               <h1 className="text-2xl font-bold">{t("allExpenses")}</h1>
             </div>
-            <a href="/expenses/new" className="btn btn-primary">
-              <span className="icon-[tabler--plus] size-5"></span>
-              {t("addNewExpense")}
-            </a>
+            {isAdmin ? (
+              <a href="/expenses/new" className="btn btn-primary">
+                <span className="icon-[tabler--plus] size-5"></span>
+                {t("addNewExpense")}
+              </a>
+            ) : null}
           </div>
 
           {error && (
@@ -191,10 +234,12 @@ export default function Expenses() {
                 <div className="text-center py-10">
                   <span className="icon-[tabler--receipt-off] size-12 text-base-content/50 mb-4"></span>
                   <p className="text-base-content/70">{t("noExpensesFound")}</p>
-                  <a href="/expenses/new" className="btn btn-primary mt-4">
-                    <span className="icon-[tabler--plus] size-5"></span>
-                    {t("addNewExpense")}
-                  </a>
+                  {isAdmin ? (
+                    <a href="/expenses/new" className="btn btn-primary mt-4">
+                      <span className="icon-[tabler--plus] size-5"></span>
+                      {t("addNewExpense")}
+                    </a>
+                  ) : null}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -217,22 +262,28 @@ export default function Expenses() {
                           <td>{ex.notes ? <span className="line-clamp-2">{ex.notes}</span> : <span className="text-base-content/50 italic">{t("noNotes")}</span>}</td>
                           <td>
                             <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                className="btn btn-xs btn-outline"
-                                onClick={() => setEditing(ex)}
-                                disabled={saving}
-                              >
-                                {t("edit")}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-xs btn-outline btn-error"
-                                onClick={() => handleDelete(ex.id)}
-                                disabled={saving}
-                              >
-                                {t("delete")}
-                              </button>
+                              {isAdmin ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="btn btn-xs btn-outline"
+                                    onClick={() => setEditing(ex)}
+                                    disabled={saving}
+                                  >
+                                    {t("edit")}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-xs btn-outline btn-error"
+                                    onClick={() => handleDelete(ex.id)}
+                                    disabled={saving}
+                                  >
+                                    {t("delete")}
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-base-content/50">—</span>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -245,7 +296,7 @@ export default function Expenses() {
           </div>
         </div>
 
-        {editing && (
+        {editing && isAdmin && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/40" onClick={() => setEditing(null)}></div>
             <div className="relative w-full max-w-2xl bg-base-100 rounded-lg shadow-base-300/20 shadow-sm">

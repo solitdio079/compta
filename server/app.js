@@ -2,6 +2,12 @@ const express = require("express")
 require("dotenv").config()
 const cors = require("cors")
 const ExcelJS = require("exceljs")
+const session = require("express-session")
+const passport = require("passport")
+const LocalStrategy = require("passport-local").Strategy
+const bcrypt = require("bcrypt")
+const crypto = require("crypto")
+const pool = require("./db/pool")
 const app = express()
 const {
     createTrip,
@@ -14,6 +20,9 @@ const {
     createExpense,
     updateExpense,
     deleteExpense,
+    findUserByUsername,
+    findUserById,
+    createUser,
 } = require("./db/queries")
 
 const PORT = process.env.PORT
@@ -32,14 +41,242 @@ app.use(
             if (allowedOrigins.includes(origin)) return callback(null, true)
             return callback(new Error(`CORS blocked for origin: ${origin}`))
         },
+        credentials: true,
     })
 )
+app.set("trust proxy", 1)
 app.use(express.json())
 
-// Auth hook (future): add session/JWT middleware here and then protect the /api routes below.
-// Example pattern: app.use(authMiddleware) or per-route middleware (app.get(..., requireAuth, handler)).
+app.use(
+    session({
+        name: "compta.sid",
+        secret: process.env.SESSION_SECRET || "dev-session-secret",
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            maxAge: 1000 * 60 * 60 * 24 * 7,
+        },
+    })
+)
 
-app.post("/api/trips", async (req, res) => {
+passport.use(
+    new LocalStrategy(async (username, password, done) => {
+        try {
+            const user = await findUserByUsername(username)
+            if (!user) return done(null, false, { message: "Invalid credentials" })
+
+            const ok = await bcrypt.compare(password, user.password_hash)
+            if (!ok) return done(null, false, { message: "Invalid credentials" })
+
+            return done(null, { id: user.id, username: user.username, is_admin: user.is_admin })
+        } catch (err) {
+            return done(err)
+        }
+    })
+)
+
+passport.serializeUser((user, done) => {
+    done(null, user.id)
+})
+
+passport.deserializeUser(async (id, done) => {
+    try {
+        const user = await findUserById(id)
+        if (!user) return done(null, false)
+        done(null, { id: user.id, username: user.username, is_admin: user.is_admin })
+    } catch (err) {
+        done(err)
+    }
+})
+
+app.post("/api/auth/forgot-password", async (req, res) => {
+    const { username } = req.body || {}
+    if (!username) return res.status(400).json({ error: "username is required" })
+
+    try {
+        const user = await findUserByUsername(username)
+
+        // Always return ok to avoid leaking which usernames exist.
+        if (!user) {
+            return res.json({ ok: true })
+        }
+
+        const token = crypto.randomBytes(32).toString("hex")
+        const token_hash = crypto.createHash("sha256").update(token).digest("hex")
+        const expiresAt = new Date(Date.now() + 1000 * 60 * 30) // 30 minutes
+
+        await pool.query(
+            `INSERT INTO conta_password_resets (user_id, token_hash, expires_at)
+             VALUES ($1, $2, $3)`,
+            [user.id, token_hash, expiresAt]
+        )
+
+        const clientBaseUrl = process.env.CLIENT_BASE_URL || "http://localhost:5173"
+        const resetUrl = `${clientBaseUrl.replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(token)}`
+
+        // Email is not wired yet: return the link for manual testing.
+        return res.json({ ok: true, resetUrl })
+    } catch (err) {
+        console.error(err)
+        return res.status(500).json({ error: "Failed to start password reset" })
+    }
+})
+
+app.post("/api/auth/reset-password", async (req, res) => {
+    const { token, newPassword } = req.body || {}
+    if (!token || !newPassword) {
+        return res.status(400).json({ error: "token and newPassword are required" })
+    }
+
+    try {
+        const token_hash = crypto.createHash("sha256").update(token).digest("hex")
+        const { rows } = await pool.query(
+            `SELECT pr.id, pr.user_id
+             FROM conta_password_resets pr
+             WHERE pr.token_hash = $1
+               AND pr.used_at IS NULL
+               AND pr.expires_at > NOW()
+             ORDER BY pr.created_at DESC
+             LIMIT 1`,
+            [token_hash]
+        )
+
+        const pr = rows[0]
+        if (!pr) return res.status(400).json({ error: "Invalid or expired token" })
+
+        const password_hash = await bcrypt.hash(newPassword, 12)
+        await pool.query(`UPDATE conta_users SET password_hash = $2 WHERE id = $1`, [pr.user_id, password_hash])
+        await pool.query(`UPDATE conta_password_resets SET used_at = NOW() WHERE id = $1`, [pr.id])
+
+        return res.json({ ok: true })
+    } catch (err) {
+        console.error(err)
+        return res.status(500).json({ error: "Failed to reset password" })
+    }
+})
+
+app.use(passport.initialize())
+app.use(passport.session())
+
+function requireAdmin(req, res, next) {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+        return res.status(401).json({ error: "Unauthorized" })
+    }
+    if (!req.user || req.user.is_admin !== true) {
+        return res.status(403).json({ error: "Forbidden" })
+    }
+    next()
+}
+
+function requireLogin(req, res, next) {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+        return res.status(401).json({ error: "Unauthorized" })
+    }
+    next()
+}
+
+async function ensureAuthSchema() {
+    await pool.query(
+        `CREATE TABLE IF NOT EXISTS conta_users (
+            id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            is_admin BOOLEAN NOT NULL DEFAULT false
+        );`
+    )
+
+    await pool.query(
+        `CREATE TABLE IF NOT EXISTS conta_password_resets (
+            id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            user_id BIGINT NOT NULL REFERENCES conta_users(id) ON DELETE CASCADE,
+            token_hash TEXT NOT NULL,
+            expires_at TIMESTAMPTZ NOT NULL,
+            used_at TIMESTAMPTZ NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );`
+    )
+}
+
+app.post("/api/auth/login", (req, res, next) => {
+    passport.authenticate("local", (err, user) => {
+        if (err) return next(err)
+        if (!user) return res.status(401).json({ error: "Invalid credentials" })
+
+        req.logIn(user, (loginErr) => {
+            if (loginErr) return next(loginErr)
+            return res.json({ id: user.id, username: user.username, isAdmin: user.is_admin === true })
+        })
+    })(req, res, next)
+})
+
+app.post("/api/auth/logout", (req, res, next) => {
+    req.logout((err) => {
+        if (err) return next(err)
+        req.session.destroy(() => {
+            res.clearCookie("compta.sid")
+            res.json({ ok: true })
+        })
+    })
+})
+
+app.post("/api/auth/signup", async (req, res) => {
+    const publicSignupEnabled = String(process.env.PUBLIC_SIGNUP_ENABLED ?? "")
+        .trim()
+        .toLowerCase() === "true"
+    if (!publicSignupEnabled) {
+        const token = req.header("x-admin-signup-token")
+        if (!process.env.ADMIN_SIGNUP_TOKEN || token !== process.env.ADMIN_SIGNUP_TOKEN) {
+            return res.status(403).json({ error: "Forbidden" })
+        }
+    }
+
+    const { username, password } = req.body || {}
+    if (!username || !password) {
+        return res.status(400).json({ error: "username and password are required" })
+    }
+
+    try {
+        const existing = await findUserByUsername(username)
+        if (existing) return res.status(409).json({ error: "Username already exists" })
+
+        const password_hash = await bcrypt.hash(password, 12)
+        const user = await createUser(username, password_hash)
+        res.status(201).json({ id: user.id, username: user.username, isAdmin: user.is_admin === true })
+    } catch (err) {
+        console.error(err)
+        res.status(500).json({ error: "Failed to create user" })
+    }
+})
+
+app.get("/api/auth/me", (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+        return res.json({ authenticated: false })
+    }
+    res.json({
+        authenticated: true,
+        user: { id: req.user.id, username: req.user.username, isAdmin: req.user.is_admin === true },
+    })
+})
+
+// Everything else under /api requires at least a logged-in session.
+app.use("/api", (req, res, next) => {
+    if (
+        req.path === "/auth/login" ||
+        req.path === "/auth/logout" ||
+        req.path === "/auth/me" ||
+        req.path === "/auth/signup" ||
+        req.path === "/auth/forgot-password" ||
+        req.path === "/auth/reset-password"
+    ) {
+        return next()
+    }
+    return requireLogin(req, res, next)
+})
+
+app.post("/api/trips", requireAdmin, async (req, res) => {
     try {
         const { trip_date, income, notes } = req.body
         const newTrip = await createTrip(trip_date, income, notes)
@@ -63,7 +300,7 @@ app.get("/api/trips", async (req, res) => {
     }
 })
 
-app.put("/api/trips/:id", async (req, res) => {
+app.put("/api/trips/:id", requireAdmin, async (req, res) => {
     try {
         const id = Number(req.params.id)
         const { trip_date, income, notes } = req.body
@@ -78,7 +315,7 @@ app.put("/api/trips/:id", async (req, res) => {
     }
 })
 
-app.delete("/api/trips/:id", async (req, res) => {
+app.delete("/api/trips/:id", requireAdmin, async (req, res) => {
     try {
         const deleted = await deleteTrip(Number(req.params.id))
         if (!deleted) {
@@ -116,7 +353,7 @@ app.get("/api/reports/daily", async (req, res) => {
     }
 })
 
-app.get("/api/reports/daily.xlsx", async (req, res) => {
+app.get("/api/reports/daily.xlsx", requireAdmin, async (req, res) => {
     try {
         // Excel export: same report as /api/reports/daily but returned as an .xlsx attachment.
         const month = typeof req.query.month === "string" ? req.query.month : ""
@@ -207,7 +444,7 @@ app.get("/api/expenses/:id", async (req, res) => {
     }
 })
 
-app.post("/api/expenses", async (req, res) => {
+app.post("/api/expenses", requireAdmin, async (req, res) => {
     try {
         const { expense_date, category, amount, notes } = req.body
         const newExpense = await createExpense(expense_date, category ?? null, amount, notes ?? null)
@@ -218,7 +455,7 @@ app.post("/api/expenses", async (req, res) => {
     }
 })
 
-app.put("/api/expenses/:id", async (req, res) => {
+app.put("/api/expenses/:id", requireAdmin, async (req, res) => {
     try {
         const id = Number(req.params.id)
         const { expense_date, category, amount, notes } = req.body
@@ -233,7 +470,7 @@ app.put("/api/expenses/:id", async (req, res) => {
     }
 })
 
-app.delete("/api/expenses/:id", async (req, res) => {
+app.delete("/api/expenses/:id", requireAdmin, async (req, res) => {
     try {
         const deleted = await deleteExpense(Number(req.params.id))
         if (!deleted) {
@@ -246,6 +483,13 @@ app.delete("/api/expenses/:id", async (req, res) => {
     }
 })
 
-app.listen(PORT, () => {
-    console.log(`Server listening to port ${PORT}`)
-})
+ensureAuthSchema()
+    .then(() => {
+        app.listen(PORT, () => {
+            console.log(`Server listening to port ${PORT}`)
+        })
+    })
+    .catch((err) => {
+        console.error("Failed to init auth schema", err)
+        process.exit(1)
+    })

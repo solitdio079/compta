@@ -3,6 +3,7 @@ import { format, parseISO, isValid } from "date-fns";
 import { enUS, fr } from "date-fns/locale";
 import { useI18n } from "~/i18n";
 import { apiUrl } from "~/lib/api";
+import { useAuth } from "~/lib/auth";
 
 interface Trip {
   id: number;
@@ -13,6 +14,7 @@ interface Trip {
 
 export default function TripsTable() {
   const { t, language } = useI18n();
+  const { state } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -32,7 +34,7 @@ export default function TripsTable() {
         ? `${apiUrl("/api/trips")}?${params.toString()}`
         : apiUrl("/api/trips");
 
-      const response = await fetch(url);
+      const response = await fetch(url, { credentials: "include" });
       if (!response.ok) {
         throw new Error("Failed to fetch trips");
       }
@@ -46,8 +48,10 @@ export default function TripsTable() {
   };
 
   useEffect(() => {
+    if (state.status !== "ready") return;
+    if (!state.authenticated) return;
     void loadTrips();
-  }, []);
+  }, [state.status, state.authenticated]);
 
   useEffect(() => {
     if (!from || !to) return;
@@ -76,6 +80,7 @@ export default function TripsTable() {
     try {
       const response = await fetch(apiUrl(`/api/trips/${id}`), {
         method: "DELETE",
+        credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to delete trip");
       await loadTrips(from || undefined, to || undefined);
@@ -95,6 +100,7 @@ export default function TripsTable() {
       const response = await fetch(apiUrl(`/api/trips/${editing.id}`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           trip_date: editing.trip_date,
           income: editing.income,
@@ -110,6 +116,35 @@ export default function TripsTable() {
       setSaving(false);
     }
   };
+
+  if (state.status !== "ready") {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-base-100 rounded-lg shadow-base-300/20 shadow-sm">
+          <div className="p-6">
+            <div className="flex items-center justify-center py-8">
+              <span className="loading loading-spinner loading-lg"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!state.authenticated) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-base-100 rounded-lg shadow-base-300/20 shadow-sm">
+          <div className="p-6">
+            <div className="alert alert-warning">
+              <span className="icon-[tabler--lock] size-5"></span>
+              <span>{t("loginRequiredTrips")}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -231,22 +266,28 @@ export default function TripsTable() {
                       </td>
                       <td>
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="btn btn-xs btn-outline"
-                            onClick={() => setEditing(trip)}
-                            disabled={saving}
-                          >
-                            {t("edit")}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-xs btn-outline btn-error"
-                            onClick={() => handleDelete(trip.id)}
-                            disabled={saving}
-                          >
-                            {t("delete")}
-                          </button>
+                          {state.user.isAdmin ? (
+                            <>
+                              <button
+                                type="button"
+                                className="btn btn-xs btn-outline"
+                                onClick={() => setEditing(trip)}
+                                disabled={saving}
+                              >
+                                {t("edit")}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-xs btn-outline btn-error"
+                                onClick={() => handleDelete(trip.id)}
+                                disabled={saving}
+                              >
+                                {t("delete")}
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-base-content/50">—</span>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -255,7 +296,7 @@ export default function TripsTable() {
               </table>
             </div>
           )}
-          {trips.length > 0 && (
+          {trips.length > 0 && state.user.isAdmin && (
             <div className="mt-6 flex justify-end">
               <a 
                 href="/trips/new" 
@@ -269,7 +310,7 @@ export default function TripsTable() {
         </div>
       </div>
 
-      {editing && (
+      {editing && state.user.isAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setEditing(null)}></div>
           <div className="relative w-full max-w-2xl bg-base-100 rounded-lg shadow-base-300/20 shadow-sm">

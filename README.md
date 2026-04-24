@@ -151,6 +151,10 @@ Client runs at whatever port React Router dev server chooses (often shown in the
 
 - `PORT`: server port (default: `3000`)
 - `DB_HOST`, `DB_USER`, `DB_PWD`, `DB_NAME`, `DB_PORT`: PostgreSQL connection
+- `SESSION_SECRET`: session cookie signing secret (required in production)
+- `ADMIN_SIGNUP_TOKEN`: required to call `POST /api/auth/signup` (used to create the first user safely)
+- `PUBLIC_SIGNUP_ENABLED`: set to `true` to allow anyone to sign up without `x-admin-signup-token` (default: disabled)
+- `CLIENT_BASE_URL`: used to generate password reset links (e.g. `https://compta.bysolitdio.com`)
 
 **Do not commit secrets**. In production (Coolify), configure these in the service environment settings.
 
@@ -176,6 +180,8 @@ Base URL (local): `http://localhost:3000`
 - `PUT /api/trips/:id`
 - `DELETE /api/trips/:id`
 
+`POST/PUT/DELETE` are **admin-only**.
+
 ### Expenses
 
 - `GET /api/expenses`
@@ -193,6 +199,53 @@ Base URL (local): `http://localhost:3000`
 
 - `PUT /api/expenses/:id`
 - `DELETE /api/expenses/:id`
+
+`POST/PUT/DELETE` are **admin-only**.
+
+### Authentication
+
+This app uses **Passport.js Local Strategy** with **cookie-based sessions**.
+
+- `POST /api/auth/login`
+  - Body:
+    ```json
+    { "username": "...", "password": "..." }
+    ```
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+
+To create a user (intended for bootstrapping your first account):
+
+- `POST /api/auth/signup`
+  - Header: `x-admin-signup-token: <ADMIN_SIGNUP_TOKEN>`
+  - Body:
+    ```json
+    { "username": "...", "password": "..." }
+    ```
+
+Admin access is controlled by a boolean column on the DB user record (`users.is_admin`).
+
+Password reset endpoints (email delivery not implemented yet):
+
+- `POST /api/auth/forgot-password`
+  - Body:
+    ```json
+    { "username": "..." }
+    ```
+  - Returns `{ ok: true, resetUrl }` for manual testing.
+
+- `POST /api/auth/reset-password`
+  - Body:
+    ```json
+    { "token": "...", "newPassword": "..." }
+    ```
+
+Client pages:
+
+- `/login`
+- `/signup`
+- `/forgot-password`
+- `/reset-password?token=...`
 
 ### Reports
 
@@ -271,26 +324,45 @@ Recommended:
   - same domain under `/api`, or
   - separate subdomain like `https://api-compta.example.com`
 
-If you want, we can refactor the client to use an environment-based API URL (e.g. `VITE_API_BASE_URL`) for clean production deployments.
+The client uses `VITE_API_BASE_URL` to talk to the API.
+
+In Coolify (client service), set:
+
+```env
+VITE_API_BASE_URL=https://api-compta.bysolitdio.com
+```
+
+Because auth uses cookie sessions across subdomains, make sure the API is served over HTTPS.
 
 ---
 
-## Authentication notes (future work)
+## Authentication
 
-If you plan to add auth, good insertion points are:
+### Database table
 
-- `server/app.js`
-  - Add auth middleware (session/JWT)
-  - Protect routes (e.g. `/api/trips`, `/api/expenses`, `/api/reports/*`)
+Create a `users` table:
 
-- `client/app/root.tsx`
-  - Add an auth provider/context
-  - Add protected routes and redirects
+```sql
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  is_admin BOOLEAN NOT NULL DEFAULT false
+);
+```
 
-When you add auth, prefer:
+You can grant admin rights by setting `is_admin = true` for a user in your DB console.
 
-- server-side verification (never trust the client)
-- consistent error responses (`401` / `403`)
+### Cookie/session behavior in production
+
+When deploying with different subdomains (e.g. `compta...` and `api-compta...`), cookies are cross-site.
+
+The server is configured to use:
+
+- `SameSite=None` + `Secure` in production
+- CORS `credentials: true`
+
+And the client sends requests with `credentials: "include"` for admin-protected actions.
 
 ---
 

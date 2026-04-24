@@ -3,6 +3,7 @@ import { useI18n } from "~/i18n";
 import { format, parseISO, isValid } from "date-fns";
 import { enUS, fr } from "date-fns/locale";
 import { apiUrl } from "~/lib/api";
+import { useAuth } from "~/lib/auth";
 
 type ReportDay = {
   day: string;
@@ -19,6 +20,7 @@ type ReportResponse = {
 
 export default function DailyReportTable() {
   const { t, language } = useI18n();
+  const { state } = useAuth();
   const [data, setData] = useState<ReportResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -48,7 +50,10 @@ export default function DailyReportTable() {
     setError("");
 
     try {
-      const response = await fetch(`${apiUrl("/api/reports/daily")}?month=${encodeURIComponent(m)}`);
+      const response = await fetch(
+        `${apiUrl("/api/reports/daily")}?month=${encodeURIComponent(m)}`,
+        { credentials: "include" }
+      );
       if (!response.ok) throw new Error("Failed to fetch report");
       const json = (await response.json()) as ReportResponse;
       setData(json);
@@ -62,6 +67,35 @@ export default function DailyReportTable() {
   useEffect(() => {
     void load(month);
   }, [month]);
+
+  if (state.status !== "ready") {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-base-100 rounded-lg shadow-base-300/20 shadow-sm">
+          <div className="p-6">
+            <div className="flex items-center justify-center py-8">
+              <span className="loading loading-spinner loading-lg"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!state.authenticated) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-base-100 rounded-lg shadow-base-300/20 shadow-sm">
+          <div className="p-6">
+            <div className="alert alert-warning">
+              <span className="icon-[tabler--lock] size-5"></span>
+              <span>{t("loginRequiredReports")}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -98,7 +132,8 @@ export default function DailyReportTable() {
     setDownloading(true);
     try {
       const response = await fetch(
-        `${apiUrl("/api/reports/daily.xlsx")}?month=${encodeURIComponent(month)}&lang=${encodeURIComponent(language)}`
+        `${apiUrl("/api/reports/daily.xlsx")}?month=${encodeURIComponent(month)}&lang=${encodeURIComponent(language)}`,
+        { credentials: "include" }
       );
       if (!response.ok) throw new Error("Failed to download");
       const blob = await response.blob();
@@ -175,16 +210,23 @@ export default function DailyReportTable() {
 
           {days.length > 0 && (
             <div className="mt-6 flex justify-end">
-              <button type="button" className="btn btn-primary" onClick={handleDownload} disabled={downloading}>
-                {downloading ? (
-                  <span className="loading loading-spinner loading-sm"></span>
-                ) : (
-                  <>
-                    <span className="icon-[tabler--download] size-5"></span>
-                    {t("downloadExcel")}
-                  </>
-                )}
-              </button>
+              {state.user.isAdmin ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleDownload}
+                  disabled={downloading}
+                >
+                  {downloading ? (
+                    <span className="loading loading-spinner loading-sm"></span>
+                  ) : (
+                    <>
+                      <span className="icon-[tabler--download] size-5"></span>
+                      {t("downloadExcel")}
+                    </>
+                  )}
+                </button>
+              ) : null}
             </div>
           )}
         </div>

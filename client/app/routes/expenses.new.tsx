@@ -48,6 +48,7 @@ export default function NewExpense() {
       const response = await fetch(apiUrl("/api/expenses"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(parsedPayload),
       });
 

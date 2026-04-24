@@ -141,6 +141,32 @@ async function deleteExpense(id){
     return rows[0]
 }
 
+async function findUserByUsername(username){
+    const { rows } = await pool.query(
+        `SELECT id, username, password_hash, is_admin FROM conta_users WHERE username = $1`,
+        [username]
+    )
+    return rows[0]
+}
+
+async function findUserById(id){
+    const { rows } = await pool.query(
+        `SELECT id, username, password_hash, is_admin FROM conta_users WHERE id = $1`,
+        [id]
+    )
+    return rows[0]
+}
+
+async function createUser(username, passwordHash){
+    const { rows } = await pool.query(
+        `INSERT INTO conta_users (username, password_hash, is_admin)
+         VALUES ($1, $2, false)
+         RETURNING id, username, is_admin`,
+        [username, passwordHash]
+    )
+    return rows[0]
+}
+
 module.exports={
     findAllTrips,
     createTrip,
@@ -151,5 +177,8 @@ module.exports={
     findExpenseById,
     createExpense,
     updateExpense,
-    deleteExpense
+    deleteExpense,
+    findUserByUsername,
+    findUserById,
+    createUser
 }

@@ -10,8 +10,10 @@ import { useEffect } from "react";
 import type { Route } from "./+types/root";
 import "./app.css";
 
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { I18nProvider } from "~/i18n";
+import { AuthProvider } from "~/lib/auth";
+import { useAuth } from "~/lib/auth";
 
 async function loadFlyonUI() {
   return import('flyonui/flyonui');
@@ -48,8 +50,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function App() {
+function AppInner() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { state } = useAuth();
 
   useEffect(() => {
     const initFlyonUI = async () => {
@@ -69,12 +73,41 @@ export default function App() {
       }
     }, 100);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (state.status !== "ready") return;
+
+    const publicPaths = new Set(["/login", "/signup", "/forgot-password", "/reset-password"]);
+    const path = location.pathname;
+
+    if (!state.authenticated && !publicPaths.has(path)) {
+      const redirectTo = `${path}${location.search || ""}`;
+      navigate(`/login?redirectTo=${encodeURIComponent(redirectTo)}`, { replace: true });
+    }
+
+    if (state.authenticated && publicPaths.has(path)) {
+      const params = new URLSearchParams(location.search);
+      const redirectTo = params.get("redirectTo") || "/";
+      navigate(redirectTo, { replace: true });
+    }
+  }, [state.status, state.authenticated, location.pathname, location.search, navigate]);
+
+  return (
+    <Outlet />
+  );
+}
+
+function AppWithProviders() {
   return (
     <I18nProvider>
-      <Outlet />
+      <AuthProvider>
+        <AppInner />
+      </AuthProvider>
     </I18nProvider>
   );
 }
+
+export default AppWithProviders;
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   let message = "Oops!";
