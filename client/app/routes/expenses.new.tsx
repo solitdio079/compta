@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import Navbar from "~/components/Navbar";
 import Footer from "~/components/Footer";
 import { useI18n } from "~/i18n";
+import { apiUrl } from "~/lib/api";
 
 export function meta() {
   return [
@@ -44,7 +45,7 @@ export default function NewExpense() {
     setError("");
 
     try {
-      const response = await fetch("http://localhost:3000/api/expenses", {
+      const response = await fetch(apiUrl("/api/expenses"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parsedPayload),

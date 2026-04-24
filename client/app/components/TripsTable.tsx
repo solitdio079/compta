@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { format, parseISO, isValid } from "date-fns";
 import { enUS, fr } from "date-fns/locale";
 import { useI18n } from "~/i18n";
+import { apiUrl } from "~/lib/api";
 
 interface Trip {
   id: number;
@@ -28,8 +29,8 @@ export default function TripsTable() {
       if (fromDate) params.set("from", fromDate);
       if (toDate) params.set("to", toDate);
       const url = params.toString()
-        ? `http://localhost:3000/api/trips?${params.toString()}`
-        : "http://localhost:3000/api/trips";
+        ? `${apiUrl("/api/trips")}?${params.toString()}`
+        : apiUrl("/api/trips");
 
       const response = await fetch(url);
       if (!response.ok) {
@@ -73,7 +74,7 @@ export default function TripsTable() {
     setSaving(true);
     setError("");
     try {
-      const response = await fetch(`http://localhost:3000/api/trips/${id}`, {
+      const response = await fetch(apiUrl(`/api/trips/${id}`), {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete trip");
@@ -91,7 +92,7 @@ export default function TripsTable() {
     setSaving(true);
     setError("");
     try {
-      const response = await fetch(`http://localhost:3000/api/trips/${editing.id}`, {
+      const response = await fetch(apiUrl(`/api/trips/${editing.id}`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

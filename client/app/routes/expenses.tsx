@@ -4,6 +4,7 @@ import Footer from "~/components/Footer";
 import { useI18n } from "~/i18n";
 import { format, parseISO, isValid } from "date-fns";
 import { enUS, fr } from "date-fns/locale";
+import { apiUrl } from "~/lib/api";
 
 type Expense = {
   id: number;
@@ -45,8 +46,8 @@ export default function Expenses() {
       if (fromDate) params.set("from", fromDate);
       if (toDate) params.set("to", toDate);
       const url = params.toString()
-        ? `http://localhost:3000/api/expenses?${params.toString()}`
-        : "http://localhost:3000/api/expenses";
+        ? `${apiUrl("/api/expenses")}?${params.toString()}`
+        : apiUrl("/api/expenses");
 
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch expenses");
@@ -72,7 +73,7 @@ export default function Expenses() {
     if (!confirm(t("delete") + "?")) return;
     setSaving(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/expenses/${id}`, {
+      const response = await fetch(apiUrl(`/api/expenses/${id}`), {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete expense");
@@ -91,7 +92,7 @@ export default function Expenses() {
     setError("");
 
     try {
-      const response = await fetch(`http://localhost:3000/api/expenses/${editing.id}`, {
+      const response = await fetch(apiUrl(`/api/expenses/${editing.id}`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

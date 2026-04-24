@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useI18n } from "~/i18n";
 import Navbar from "~/components/Navbar";
 import Footer from "~/components/Footer";
+import { apiUrl } from "~/lib/api";
 
 export function meta() {
     return [
@@ -33,7 +34,7 @@ export default function NewTrip() {
         setError("");
 
         try {
-            const response = await fetch("http://localhost:3000/api/trips", {
+            const response = await fetch(apiUrl("/api/trips"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

@@ -18,8 +18,25 @@ const {
 
 const PORT = process.env.PORT
 
-app.use(cors())
+const allowedOrigins = [
+    "https://conpta.bysolitdio.com",
+    "http://localhost:5173",
+    "http://localhost:5174",
+]
+
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            if (!origin) return callback(null, true)
+            if (allowedOrigins.includes(origin)) return callback(null, true)
+            return callback(new Error(`CORS blocked for origin: ${origin}`))
+        },
+    })
+)
 app.use(express.json())
+
+// Auth hook (future): add session/JWT middleware here and then protect the /api routes below.
+// Example pattern: app.use(authMiddleware) or per-route middleware (app.get(..., requireAuth, handler)).
 
 app.post("/api/trips", async (req, res) => {
     try {
@@ -32,6 +49,7 @@ app.post("/api/trips", async (req, res) => {
     }
 })
 
+// Trips: list + optional date filtering via ?from=YYYY-MM-DD&to=YYYY-MM-DD
 app.get("/api/trips", async (req, res) => {
     try {
         const from = typeof req.query.from === "string" ? req.query.from : undefined
@@ -74,6 +92,7 @@ app.delete("/api/trips/:id", async (req, res) => {
 
 app.get("/api/reports/daily", async (req, res) => {
     try {
+        // Reports: month-level daily aggregation (income vs expenses) with net.
         const month = typeof req.query.month === "string" ? req.query.month : ""
 
         const now = new Date()
@@ -98,6 +117,7 @@ app.get("/api/reports/daily", async (req, res) => {
 
 app.get("/api/reports/daily.xlsx", async (req, res) => {
     try {
+        // Excel export: same report as /api/reports/daily but returned as an .xlsx attachment.
         const month = typeof req.query.month === "string" ? req.query.month : ""
         const lang = typeof req.query.lang === "string" ? req.query.lang : "en"
 

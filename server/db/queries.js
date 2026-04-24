@@ -1,5 +1,8 @@
 const pool = require("./pool")
 
+// Note: these queries are intentionally simple.
+// Auth hook (future): if you add users, you will likely add a user_id column and filter in these queries.
+
 async function findAllTrips(fromDate, toDate){
     if (fromDate && toDate) {
         const { rows } = await pool.query(
@@ -37,6 +40,8 @@ async function findExpenseById(id){
 }
 
 async function createTrip(trip_date, income, notes){
+    // Some DB schemas may have trips.id as NOT NULL without SERIAL/IDENTITY.
+    // This uses MAX(id)+1 to generate ids without altering the table structure.
     const { rows } = await pool.query(
         `WITH next_id AS (
             SELECT COALESCE(MAX(id), 0) + 1 AS id FROM trips
@@ -100,6 +105,7 @@ async function getDailyReport(fromDate, toDate){
 }
 
 async function createExpense(expense_date, category, amount, notes){
+    // Same MAX(id)+1 strategy as trips, for schemas where expenses.id has no default.
     const { rows } = await pool.query(
         `WITH next_id AS (
             SELECT COALESCE(MAX(id), 0) + 1 AS id FROM expenses

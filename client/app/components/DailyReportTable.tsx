@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "~/i18n";
 import { format, parseISO, isValid } from "date-fns";
 import { enUS, fr } from "date-fns/locale";
+import { apiUrl } from "~/lib/api";
 
 type ReportDay = {
   day: string;
@@ -47,7 +48,7 @@ export default function DailyReportTable() {
     setError("");
 
     try {
-      const response = await fetch(`http://localhost:3000/api/reports/daily?month=${encodeURIComponent(m)}`);
+      const response = await fetch(`${apiUrl("/api/reports/daily")}?month=${encodeURIComponent(m)}`);
       if (!response.ok) throw new Error("Failed to fetch report");
       const json = (await response.json()) as ReportResponse;
       setData(json);
@@ -97,7 +98,7 @@ export default function DailyReportTable() {
     setDownloading(true);
     try {
       const response = await fetch(
-        `http://localhost:3000/api/reports/daily.xlsx?month=${encodeURIComponent(month)}&lang=${encodeURIComponent(language)}`
+        `${apiUrl("/api/reports/daily.xlsx")}?month=${encodeURIComponent(month)}&lang=${encodeURIComponent(language)}`
       );
       if (!response.ok) throw new Error("Failed to download");
       const blob = await response.blob();
