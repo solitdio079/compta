@@ -1,5 +1,4 @@
-@import "tailwindcss";
-
+@import "tailwindcss/index.css";
 @plugin "flyonui";
 @plugin "@iconify/tailwind4";
 
