@@ -19,40 +19,69 @@ CREATE TABLE IF NOT EXISTS conta_password_resets (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-WITH seed(trip_date, income, notes) AS (
+CREATE TABLE IF NOT EXISTS trips (
+  id BIGINT PRIMARY KEY,
+  trip_date DATE NOT NULL,
+  income NUMERIC NOT NULL DEFAULT 0,
+  notes TEXT NULL,
+  truck_label TEXT NULL,
+  route_label TEXT NULL,
+  distance_km NUMERIC NOT NULL DEFAULT 0,
+  fuel_consumed NUMERIC NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS expenses (
+  id BIGINT PRIMARY KEY,
+  exprense_date DATE NOT NULL,
+  category TEXT NULL,
+  amount NUMERIC NOT NULL DEFAULT 0,
+  notes TEXT NULL,
+  truck_label TEXT NULL
+);
+
+ALTER TABLE trips
+  ADD COLUMN IF NOT EXISTS truck_label TEXT NULL,
+  ADD COLUMN IF NOT EXISTS route_label TEXT NULL,
+  ADD COLUMN IF NOT EXISTS distance_km NUMERIC NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS fuel_consumed NUMERIC NOT NULL DEFAULT 0;
+
+ALTER TABLE expenses
+  ADD COLUMN IF NOT EXISTS truck_label TEXT NULL;
+
+WITH seed(trip_date, income, notes, truck_label, route_label, distance_km, fuel_consumed) AS (
   VALUES
-    ('2026-04-01'::date, 120.50::numeric, 'Airport run + short city dropoff'::text),
-    ('2026-04-05'::date, 280.00::numeric, 'Weekend trips'::text),
-    ('2026-04-12'::date, 75.25::numeric,  'Late night ride'::text),
-    ('2026-04-18'::date, 430.00::numeric, 'Long-distance trip'::text)
+    ('2026-04-01'::date, 120.50::numeric, 'Airport run + short city dropoff'::text, 'Camion A / ML-001'::text, 'Kati - Faladiè'::text, 32::numeric, 25::numeric),
+    ('2026-04-05'::date, 280.00::numeric, 'Weekend trips'::text, 'Camion B / ML-002'::text, 'Koulikoro - Moribabougou'::text, 78::numeric, 60::numeric),
+    ('2026-04-12'::date, 75.25::numeric,  'Late night ride'::text, 'Camion A / ML-001'::text, 'Faladiè - Kati'::text, 32::numeric, 20::numeric),
+    ('2026-04-18'::date, 430.00::numeric, 'Long-distance trip'::text, 'Camion C / ML-003'::text, 'Bamako - Koulikoro'::text, 61::numeric, 80::numeric)
 ),
 max_id AS (
   SELECT COALESCE(MAX(id), 0) AS m FROM trips
 ),
 numbered AS (
-  SELECT ROW_NUMBER() OVER () AS rn, trip_date, income, notes
+  SELECT ROW_NUMBER() OVER () AS rn, trip_date, income, notes, truck_label, route_label, distance_km, fuel_consumed
   FROM seed
 )
-INSERT INTO trips (id, trip_date, income, notes)
-SELECT (max_id.m + numbered.rn)::bigint, numbered.trip_date, numbered.income, numbered.notes
+INSERT INTO trips (id, trip_date, income, notes, truck_label, route_label, distance_km, fuel_consumed)
+SELECT (max_id.m + numbered.rn)::bigint, numbered.trip_date, numbered.income, numbered.notes, numbered.truck_label, numbered.route_label, numbered.distance_km, numbered.fuel_consumed
 FROM max_id, numbered;
 
-WITH seed(exprense_date, category, amount, notes) AS (
+WITH seed(exprense_date, category, amount, notes, truck_label) AS (
   VALUES
-    ('2026-04-02'::date, 'Fuel'::varchar, 45.20::numeric, 'Gas station'::text),
-    ('2026-04-03'::date, 'Maintenance'::varchar, 120.00::numeric, 'Oil change'::text),
-    ('2026-04-10'::date, 'Tolls'::varchar, 18.75::numeric, 'Highway tolls'::text),
-    ('2026-04-15'::date, 'Parking'::varchar, 12.00::numeric, 'City parking'::text)
+    ('2026-04-02'::date, 'Achat carburant'::varchar, 45.20::numeric, 'Gas station'::text, 'Camion A / ML-001'::text),
+    ('2026-04-03'::date, 'Vidange'::varchar, 120.00::numeric, 'Oil change'::text, 'Camion B / ML-002'::text),
+    ('2026-04-10'::date, 'Péage'::varchar, 18.75::numeric, 'Highway tolls'::text, 'Camion A / ML-001'::text),
+    ('2026-04-15'::date, 'Maintenance'::varchar, 12.00::numeric, 'City parking'::text, 'Camion C / ML-003'::text)
 ),
 max_id AS (
   SELECT COALESCE(MAX(id), 0) AS m FROM expenses
 ),
 numbered AS (
-  SELECT ROW_NUMBER() OVER () AS rn, exprense_date, category, amount, notes
+  SELECT ROW_NUMBER() OVER () AS rn, exprense_date, category, amount, notes, truck_label
   FROM seed
 )
-INSERT INTO expenses (id, exprense_date, category, amount, notes)
-SELECT (max_id.m + numbered.rn)::int, numbered.exprense_date, numbered.category, numbered.amount, numbered.notes
+INSERT INTO expenses (id, exprense_date, category, amount, notes, truck_label)
+SELECT (max_id.m + numbered.rn)::int, numbered.exprense_date, numbered.category, numbered.amount, numbered.notes, numbered.truck_label
 FROM max_id, numbered;
 `
 

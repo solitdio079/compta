@@ -43,13 +43,18 @@ It’s built as a small monorepo with:
 
 - **Trips table on home page**
   - Create / edit / delete trips
+  - Track truck type / plate number, route, distance, consumed fuel, and net trip gain
   - Filter trips by date range
 - **Expenses management**
   - Create / edit / delete expenses
+  - Attach expenses to a truck and classify tire, fuel, oil change, maintenance, and similar costs
   - Filter expenses by date range
 - **Daily report (monthly)** on the home page
-  - Shows daily totals for income and expenses
-  - Shows **net** (income − expenses)
+  - Shows daily totals for income, fuel deduction, distance, and expenses
+  - Shows **net** (income − consumed fuel − expenses)
+- **Truck performance report**
+  - Weekly, monthly, and yearly performance by truck
+  - Shows gross gain, fuel deduction, expenses, distance, net gain, and performance per km
   - Month picker
 - **Download monthly Excel report**
   - `lang=en|fr` support
@@ -174,7 +179,15 @@ Base URL (local): `http://localhost:3000`
 - `POST /api/trips`
   - Body:
     ```json
-    { "trip_date": "YYYY-MM-DD", "income": "123.45", "notes": "..." }
+    {
+      "trip_date": "YYYY-MM-DD",
+      "truck_label": "Camion A / ML-001",
+      "route_label": "Kati - Faladiè",
+      "distance_km": "32",
+      "fuel_consumed": "25000",
+      "income": "125000",
+      "notes": "..."
+    }
     ```
 
 - `PUT /api/trips/:id`
@@ -194,13 +207,29 @@ Base URL (local): `http://localhost:3000`
 - `POST /api/expenses`
   - Body:
     ```json
-    { "expense_date": "YYYY-MM-DD", "category": "...", "amount": "12.34", "notes": "..." }
+    {
+      "expense_date": "YYYY-MM-DD",
+      "truck_label": "Camion A / ML-001",
+      "category": "Achat pneus",
+      "amount": "45000",
+      "notes": "..."
+    }
     ```
 
 - `PUT /api/expenses/:id`
 - `DELETE /api/expenses/:id`
 
 `POST/PUT/DELETE` are **admin-only**.
+
+### Truck performance
+
+- `GET /api/reports/performance`
+  - Query:
+    - `period=week|month|year`
+    - `value=YYYY-MM-DD` for week, `YYYY-MM` for month, `YYYY` for year
+  - Response includes:
+    - `summary`
+    - `trucks[]` with `trips_count`, `income_total`, `fuel_total`, `expense_total`, `distance_total`, `net`, and `performance_per_km`
 
 ### Authentication
 

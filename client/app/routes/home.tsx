@@ -3,6 +3,7 @@ import Navbar from "~/components/Navbar";
 import Footer from "~/components/Footer";
 import Hero from "~/components/Hero";
 import DailyReportTable from "~/components/DailyReportTable";
+import PerformanceReport from "~/components/PerformanceReport";
 import TripsTable from "~/components/TripsTable";
 import { useAuth } from "~/lib/auth";
 import { Navigate } from "react-router";
@@ -36,6 +37,7 @@ export default function Home() {
       <Navbar/>
       <Hero />
       <DailyReportTable />
+      <PerformanceReport />
       <TripsTable />
       <Footer />
     </div>

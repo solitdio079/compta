@@ -6,10 +6,12 @@ import { format, parseISO, isValid } from "date-fns";
 import { enUS, fr } from "date-fns/locale";
 import { apiUrl } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
+import { formatMoney } from "~/lib/format";
 
 type Expense = {
   id: number;
   expense_date: string;
+  truck_label: string | null;
   category: string | null;
   amount: string;
   notes: string | null;
@@ -103,6 +105,7 @@ export default function Expenses() {
         credentials: "include",
         body: JSON.stringify({
           expense_date: editing.expense_date,
+          truck_label: editing.truck_label || null,
           category: editing.category,
           amount: editing.amount,
           notes: editing.notes,
@@ -247,6 +250,7 @@ export default function Expenses() {
                     <thead>
                       <tr>
                         <th>{t("expenseDate")}</th>
+                        <th>{t("truckLabel")}</th>
                         <th>{t("category")}</th>
                         <th>{t("amount")}</th>
                         <th>{t("notes")}</th>
@@ -257,8 +261,9 @@ export default function Expenses() {
                       {expenses.map((ex) => (
                         <tr key={ex.id} className="hover">
                           <td>{formatDate(ex.expense_date)}</td>
+                          <td>{ex.truck_label || <span className="text-base-content/50">—</span>}</td>
                           <td>{ex.category ?? "—"}</td>
-                          <td className="font-mono">{ex.amount}</td>
+                          <td className="font-mono">{formatMoney(ex.amount, language)}</td>
                           <td>{ex.notes ? <span className="line-clamp-2">{ex.notes}</span> : <span className="text-base-content/50 italic">{t("noNotes")}</span>}</td>
                           <td>
                             <div className="flex items-center gap-2">
@@ -323,14 +328,37 @@ export default function Expenses() {
                     />
                   </div>
                   <div>
+                    <label className="label-text" htmlFor="truck_label">{t("truckLabel")}</label>
+                    <input
+                      id="truck_label"
+                      type="text"
+                      className="input input-bordered w-full"
+                      value={editing.truck_label ?? ""}
+                      onChange={(e) => setEditing({ ...editing, truck_label: e.target.value || null })}
+                      placeholder={t("truckPlaceholder")}
+                    />
+                  </div>
+                  <div>
                     <label className="label-text" htmlFor="category">{t("category")}</label>
                     <input
                       id="category"
                       type="text"
+                      list="expense-categories-edit"
                       className="input input-bordered w-full"
                       value={editing.category ?? ""}
                       onChange={(e) => setEditing({ ...editing, category: e.target.value || null })}
+                      placeholder={t("expenseCategoryPlaceholder")}
                     />
+                    <datalist id="expense-categories-edit">
+                      <option value="Achat pneus" />
+                      <option value="Achat carburant" />
+                      <option value="Vidange" />
+                      <option value="Entretien" />
+                      <option value="Maintenance" />
+                      <option value="Réparation" />
+                      <option value="Assurance" />
+                      <option value="Péage" />
+                    </datalist>
                   </div>
                 </div>
 

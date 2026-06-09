@@ -19,6 +19,10 @@ export default function NewTrip() {
     const [error, setError] = useState("");
     const [formData, setFormData] = useState({
         trip_date: "",
+        truck_label: "",
+        route_label: "",
+        distance_km: "",
+        fuel_consumed: "",
         income: "",
         notes: "",
     });
@@ -40,7 +44,14 @@ export default function NewTrip() {
                     "Content-Type": "application/json",
                 },
                 credentials: "include",
-                body: JSON.stringify(formData),
+                body: JSON.stringify({
+                    ...formData,
+                    notes: formData.notes || null,
+                    truck_label: formData.truck_label || null,
+                    route_label: formData.route_label || null,
+                    distance_km: formData.distance_km || 0,
+                    fuel_consumed: formData.fuel_consumed || 0,
+                }),
             });
 
             if (!response.ok) {
@@ -88,14 +99,75 @@ export default function NewTrip() {
                                     />
                                 </div>
 
-                                <div>
-                                    <label className="label-text" htmlFor="income">
-                                        {t("income")} <span className="text-error">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <span className="absolute start-4 top-1/2 -translate-y-1/2 text-base-content/50">
-                                            $
-                                        </span>
+                                <div className="grid sm:grid-cols-2 gap-5">
+                                    <div>
+                                        <label className="label-text" htmlFor="truck_label">
+                                            {t("truckLabel")} <span className="text-error">*</span>
+                                        </label>
+                                        <input
+                                            id="truck_label"
+                                            name="truck_label"
+                                            type="text"
+                                            value={formData.truck_label}
+                                            onChange={handleChange}
+                                            className="input input-bordered w-full"
+                                            placeholder={t("truckPlaceholder")}
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="label-text" htmlFor="route_label">
+                                            {t("routeLabel")}
+                                        </label>
+                                        <input
+                                            id="route_label"
+                                            name="route_label"
+                                            type="text"
+                                            value={formData.route_label}
+                                            onChange={handleChange}
+                                            className="input input-bordered w-full"
+                                            placeholder={t("routePlaceholder")}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid sm:grid-cols-3 gap-5">
+                                    <div>
+                                        <label className="label-text" htmlFor="distance_km">
+                                            {t("distanceKm")}
+                                        </label>
+                                        <input
+                                            id="distance_km"
+                                            name="distance_km"
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={formData.distance_km}
+                                            onChange={handleChange}
+                                            className="input input-bordered w-full"
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="label-text" htmlFor="fuel_consumed">
+                                            {t("fuelConsumed")}
+                                        </label>
+                                        <input
+                                            id="fuel_consumed"
+                                            name="fuel_consumed"
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={formData.fuel_consumed}
+                                            onChange={handleChange}
+                                            className="input input-bordered w-full"
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="label-text" htmlFor="income">
+                                            {t("income")} <span className="text-error">*</span>
+                                        </label>
                                         <input
                                             id="income"
                                             name="income"
@@ -104,8 +176,8 @@ export default function NewTrip() {
                                             min="0"
                                             value={formData.income}
                                             onChange={handleChange}
-                                            className="input input-bordered w-full ps-8"
-                                            placeholder="0.00"
+                                            className="input input-bordered w-full"
+                                            placeholder="0"
                                             required
                                         />
                                     </div>

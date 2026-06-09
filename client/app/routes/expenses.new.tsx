@@ -20,6 +20,7 @@ export default function NewExpense() {
 
   const [formData, setFormData] = useState({
     expense_date: "",
+    truck_label: "",
     category: "",
     amount: "",
     notes: "",
@@ -28,6 +29,7 @@ export default function NewExpense() {
   const parsedPayload = useMemo(() => {
     return {
       expense_date: formData.expense_date,
+      truck_label: formData.truck_label === "" ? null : formData.truck_label,
       category: formData.category === "" ? null : formData.category,
       amount: formData.amount,
       notes: formData.notes === "" ? null : formData.notes,
@@ -99,16 +101,42 @@ export default function NewExpense() {
                 </div>
 
                 <div>
+                  <label className="label-text" htmlFor="truck_label">
+                    {t("truckLabel")}
+                  </label>
+                  <input
+                    id="truck_label"
+                    name="truck_label"
+                    type="text"
+                    value={formData.truck_label}
+                    onChange={handleChange}
+                    className="input input-bordered w-full"
+                    placeholder={t("truckPlaceholder")}
+                  />
+                </div>
+
+                <div>
                     <label className="label-text" htmlFor="category">{t("category")}</label>
                     <input
                       id="category"
                       name="category"
                       type="text"
+                      list="expense-categories"
                       value={formData.category}
                       onChange={handleChange}
                       className="input input-bordered w-full"
-                      placeholder={t("category")}
+                      placeholder={t("expenseCategoryPlaceholder")}
                     />
+                    <datalist id="expense-categories">
+                      <option value="Achat pneus" />
+                      <option value="Achat carburant" />
+                      <option value="Vidange" />
+                      <option value="Entretien" />
+                      <option value="Maintenance" />
+                      <option value="Réparation" />
+                      <option value="Assurance" />
+                      <option value="Péage" />
+                    </datalist>
                 </div>
 
                 <div>

@@ -4,10 +4,15 @@ import { enUS, fr } from "date-fns/locale";
 import { useI18n } from "~/i18n";
 import { apiUrl } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
+import { formatMoney, formatNumber } from "~/lib/format";
 
 interface Trip {
   id: number;
   trip_date: string;
+  truck_label: string | null;
+  route_label: string | null;
+  distance_km: number | string;
+  fuel_consumed: number | string;
   income: number | string;
   notes: string | null;
 }
@@ -65,12 +70,8 @@ export default function TripsTable() {
     return format(d, "PP", { locale });
   };
 
-  const formatCurrency = (amount: number | string) => {
-    const n = typeof amount === "string" ? Number(amount) : amount;
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(Number.isFinite(n) ? n : 0);
+  const getTripNet = (trip: Trip) => {
+    return Number(trip.income ?? 0) - Number(trip.fuel_consumed ?? 0);
   };
 
   const handleDelete = async (id: number) => {
@@ -104,6 +105,10 @@ export default function TripsTable() {
         body: JSON.stringify({
           trip_date: editing.trip_date,
           income: editing.income,
+          truck_label: editing.truck_label || null,
+          route_label: editing.route_label || null,
+          distance_km: editing.distance_km || 0,
+          fuel_consumed: editing.fuel_consumed || 0,
           notes: editing.notes,
         }),
       });
@@ -245,8 +250,13 @@ export default function TripsTable() {
                 <thead>
                   <tr>
                     <th>{t("date")}</th>
-                    <th>{t("income") || "Income"}</th>
-                    <th>{t("notes") || "Notes"}</th>
+                    <th>{t("truckLabel")}</th>
+                    <th>{t("routeLabel")}</th>
+                    <th>{t("distanceKm")}</th>
+                    <th>{t("income")}</th>
+                    <th>{t("fuelDeduction")}</th>
+                    <th>{t("tripNet")}</th>
+                    <th>{t("notes")}</th>
                     <th>{t("actions")}</th>
                   </tr>
                 </thead>
@@ -254,7 +264,14 @@ export default function TripsTable() {
                   {trips.map((trip) => (
                     <tr key={trip.id} className="hover">
                       <td>{formatDate(trip.trip_date)}</td>
-                      <td className="font-mono">{formatCurrency(trip.income)}</td>
+                      <td>{trip.truck_label || <span className="text-base-content/50">—</span>}</td>
+                      <td>{trip.route_label || <span className="text-base-content/50">—</span>}</td>
+                      <td className="font-mono">{formatNumber(trip.distance_km, language)} km</td>
+                      <td className="font-mono">{formatMoney(trip.income, language)}</td>
+                      <td className="font-mono">{formatMoney(trip.fuel_consumed, language)}</td>
+                      <td className={getTripNet(trip) >= 0 ? "font-mono text-success" : "font-mono text-error"}>
+                        {formatMoney(getTripNet(trip), language)}
+                      </td>
                       <td>
                         {trip.notes ? (
                           <span className="line-clamp-2">{trip.notes}</span>
@@ -313,7 +330,7 @@ export default function TripsTable() {
       {editing && state.user.isAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setEditing(null)}></div>
-          <div className="relative w-full max-w-2xl bg-base-100 rounded-lg shadow-base-300/20 shadow-sm">
+          <div className="relative w-full max-w-4xl bg-base-100 rounded-lg shadow-base-300/20 shadow-sm">
             <div className="bg-base-300/10 rounded-t-lg p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="icon-[tabler--edit] size-6 text-primary"></span>
@@ -338,6 +355,47 @@ export default function TripsTable() {
                   />
                 </div>
                 <div>
+                  <label className="label-text" htmlFor="truck_label">{t("truckLabel")}</label>
+                  <input
+                    id="truck_label"
+                    type="text"
+                    className="input input-bordered w-full"
+                    value={editing.truck_label ?? ""}
+                    onChange={(e) => setEditing({ ...editing, truck_label: e.target.value || null })}
+                    placeholder={t("truckPlaceholder")}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="label-text" htmlFor="route_label">{t("routeLabel")}</label>
+                  <input
+                    id="route_label"
+                    type="text"
+                    className="input input-bordered w-full"
+                    value={editing.route_label ?? ""}
+                    onChange={(e) => setEditing({ ...editing, route_label: e.target.value || null })}
+                    placeholder={t("routePlaceholder")}
+                  />
+                </div>
+                <div>
+                  <label className="label-text" htmlFor="distance_km">{t("distanceKm")}</label>
+                  <input
+                    id="distance_km"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="input input-bordered w-full"
+                    value={editing.distance_km}
+                    onChange={(e) => setEditing({ ...editing, distance_km: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-5">
+                <div>
                   <label className="label-text" htmlFor="income">{t("income")}</label>
                   <input
                     id="income"
@@ -348,6 +406,18 @@ export default function TripsTable() {
                     value={editing.income}
                     onChange={(e) => setEditing({ ...editing, income: e.target.value })}
                     required
+                  />
+                </div>
+                <div>
+                  <label className="label-text" htmlFor="fuel_consumed">{t("fuelConsumed")}</label>
+                  <input
+                    id="fuel_consumed"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="input input-bordered w-full"
+                    value={editing.fuel_consumed}
+                    onChange={(e) => setEditing({ ...editing, fuel_consumed: e.target.value })}
                   />
                 </div>
               </div>

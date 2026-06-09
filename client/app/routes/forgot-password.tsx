@@ -16,6 +16,7 @@ export default function ForgotPassword() {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [resetUrl, setResetUrl] = useState<string | null>(null);
 
   const canSubmit = useMemo(() => username.trim().length > 0, [username]);
@@ -26,6 +27,7 @@ export default function ForgotPassword() {
 
     setLoading(true);
     setError("");
+    setSuccess("");
     setResetUrl(null);
 
     try {
@@ -42,7 +44,11 @@ export default function ForgotPassword() {
         return;
       }
 
-      setResetUrl(json?.resetUrl ?? null);
+      if (json?.resetUrl) {
+        setResetUrl(json.resetUrl);
+      } else {
+        setSuccess(t("resetRequestHandled"));
+      }
     } catch {
       setError(t("requestFailed"));
     } finally {
@@ -60,6 +66,7 @@ export default function ForgotPassword() {
             <p className="text-base-content/70">{t("forgotPasswordSubtitle")}</p>
 
             {error ? <div className="alert alert-error mt-2">{error}</div> : null}
+            {success ? <div className="alert alert-success mt-2">{success}</div> : null}
 
             {resetUrl ? (
               <div className="alert alert-success mt-2 break-words">

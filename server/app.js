@@ -15,6 +15,7 @@ const {
     updateTrip,
     deleteTrip,
     getDailyReport,
+    getPerformanceReport,
     findAllExpenses,
     findExpenseById,
     createExpense,
@@ -32,7 +33,17 @@ const allowedOrigins = [
     "https://api-compta.bysolitdio.com",
     "http://localhost:5173",
     "http://localhost:5174",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
 ]
+
+function getRequestClientBaseUrl(req) {
+    const origin = req.get("origin")
+    if (origin && allowedOrigins.includes(origin)) {
+        return origin
+    }
+    return process.env.CLIENT_BASE_URL || "http://localhost:5173"
+}
 
 app.use(
     cors({
@@ -114,7 +125,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
             [user.id, token_hash, expiresAt]
         )
 
-        const clientBaseUrl = process.env.CLIENT_BASE_URL || "http://localhost:5173"
+        const clientBaseUrl = getRequestClientBaseUrl(req)
         const resetUrl = `${clientBaseUrl.replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(token)}`
 
         // Email is not wired yet: return the link for manual testing.
@@ -200,6 +211,86 @@ async function ensureAuthSchema() {
     )
 }
 
+async function ensureOperationsSchema() {
+    await pool.query(
+        `CREATE TABLE IF NOT EXISTS trips (
+            id BIGINT PRIMARY KEY,
+            trip_date DATE NOT NULL,
+            income NUMERIC NOT NULL DEFAULT 0,
+            notes TEXT NULL
+        );`
+    )
+
+    await pool.query(
+        `CREATE TABLE IF NOT EXISTS expenses (
+            id BIGINT PRIMARY KEY,
+            exprense_date DATE NOT NULL,
+            category TEXT NULL,
+            amount NUMERIC NOT NULL DEFAULT 0,
+            notes TEXT NULL
+        );`
+    )
+
+    await pool.query(
+        `ALTER TABLE trips
+            ADD COLUMN IF NOT EXISTS truck_label TEXT NULL,
+            ADD COLUMN IF NOT EXISTS route_label TEXT NULL,
+            ADD COLUMN IF NOT EXISTS distance_km NUMERIC NOT NULL DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS fuel_consumed NUMERIC NOT NULL DEFAULT 0;`
+    )
+
+    await pool.query(
+        `ALTER TABLE expenses
+            ADD COLUMN IF NOT EXISTS truck_label TEXT NULL;`
+    )
+}
+
+function formatDatePart(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+}
+
+function getPeriodBounds(period, value) {
+    const now = new Date()
+    const normalizedPeriod = ["week", "month", "year"].includes(period) ? period : "month"
+
+    if (normalizedPeriod === "year") {
+        const year = value ? Number(String(value).slice(0, 4)) : now.getFullYear()
+        if (!Number.isFinite(year)) return null
+        return {
+            period: normalizedPeriod,
+            from: `${year}-01-01`,
+            to: `${year}-12-31`,
+        }
+    }
+
+    if (normalizedPeriod === "month") {
+        const source = value || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+        const year = Number(String(source).split("-")[0])
+        const month = Number(String(source).split("-")[1])
+        if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return null
+        const to = new Date(year, month, 0)
+        return {
+            period: normalizedPeriod,
+            from: `${year}-${String(month).padStart(2, "0")}-01`,
+            to: formatDatePart(to),
+        }
+    }
+
+    const base = value ? new Date(`${value}T00:00:00`) : now
+    if (Number.isNaN(base.getTime())) return null
+    const day = base.getDay()
+    const mondayOffset = day === 0 ? -6 : 1 - day
+    const monday = new Date(base)
+    monday.setDate(base.getDate() + mondayOffset)
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    return {
+        period: normalizedPeriod,
+        from: formatDatePart(monday),
+        to: formatDatePart(sunday),
+    }
+}
+
 app.post("/api/auth/login", (req, res, next) => {
     passport.authenticate("local", (err, user) => {
         if (err) return next(err)
@@ -278,8 +369,16 @@ app.use("/api", (req, res, next) => {
 
 app.post("/api/trips", requireAdmin, async (req, res) => {
     try {
-        const { trip_date, income, notes } = req.body
-        const newTrip = await createTrip(trip_date, income, notes)
+        const { trip_date, income, notes, truck_label, route_label, distance_km, fuel_consumed } = req.body
+        const newTrip = await createTrip(
+            trip_date,
+            income,
+            notes ?? null,
+            truck_label ?? null,
+            route_label ?? null,
+            distance_km ?? 0,
+            fuel_consumed ?? 0
+        )
         res.status(201).json(newTrip)
     } catch (error) {
         console.error(error)
@@ -303,8 +402,17 @@ app.get("/api/trips", async (req, res) => {
 app.put("/api/trips/:id", requireAdmin, async (req, res) => {
     try {
         const id = Number(req.params.id)
-        const { trip_date, income, notes } = req.body
-        const updated = await updateTrip(id, trip_date, income, notes)
+        const { trip_date, income, notes, truck_label, route_label, distance_km, fuel_consumed } = req.body
+        const updated = await updateTrip(
+            id,
+            trip_date,
+            income,
+            notes ?? null,
+            truck_label ?? null,
+            route_label ?? null,
+            distance_km ?? 0,
+            fuel_consumed ?? 0
+        )
         if (!updated) {
             return res.status(404).json({ error: "Trip not found" })
         }
@@ -353,6 +461,37 @@ app.get("/api/reports/daily", async (req, res) => {
     }
 })
 
+app.get("/api/reports/performance", async (req, res) => {
+    try {
+        const period = typeof req.query.period === "string" ? req.query.period : "month"
+        const value = typeof req.query.value === "string" ? req.query.value : ""
+        const bounds = getPeriodBounds(period, value)
+
+        if (!bounds) {
+            return res.status(400).json({ error: "Invalid period or value" })
+        }
+
+        const trucks = await getPerformanceReport(bounds.from, bounds.to)
+        const summary = trucks.reduce(
+            (acc, row) => {
+                acc.trips_count += Number(row.trips_count ?? 0)
+                acc.income_total += Number(row.income_total ?? 0)
+                acc.fuel_total += Number(row.fuel_total ?? 0)
+                acc.expense_total += Number(row.expense_total ?? 0)
+                acc.distance_total += Number(row.distance_total ?? 0)
+                acc.net += Number(row.net ?? 0)
+                return acc
+            },
+            { trips_count: 0, income_total: 0, fuel_total: 0, expense_total: 0, distance_total: 0, net: 0 }
+        )
+
+        res.json({ ...bounds, summary, trucks })
+    } catch (error) {
+        console.error(error)
+        res.status(500).json({ error: "Failed to generate performance report" })
+    }
+})
+
 app.get("/api/reports/daily.xlsx", requireAdmin, async (req, res) => {
     try {
         // Excel export: same report as /api/reports/daily but returned as an .xlsx attachment.
@@ -380,12 +519,14 @@ app.get("/api/reports/daily.xlsx", requireAdmin, async (req, res) => {
         const title = lang === "fr" ? "Rapport quotidien" : "Daily Report"
         const ws = wb.addWorksheet(title)
         const headers = lang === "fr"
-            ? { day: "Date", income: "Revenu", expenses: "Dépenses", net: "Net" }
-            : { day: "Date", income: "Income", expenses: "Expenses", net: "Net" }
+            ? { day: "Date", income: "Revenu", fuel: "Carburant", distance: "Distance (km)", expenses: "Dépenses", net: "Net" }
+            : { day: "Date", income: "Income", fuel: "Fuel", distance: "Distance (km)", expenses: "Expenses", net: "Net" }
 
         ws.columns = [
             { header: headers.day, key: "day", width: 14 },
             { header: headers.income, key: "income_total", width: 14 },
+            { header: headers.fuel, key: "fuel_total", width: 14 },
+            { header: headers.distance, key: "distance_total", width: 16 },
             { header: headers.expenses, key: "expense_total", width: 14 },
             { header: headers.net, key: "net", width: 14 },
         ]
@@ -397,6 +538,8 @@ app.get("/api/reports/daily.xlsx", requireAdmin, async (req, res) => {
             ws.addRow({
                 day: dayVal,
                 income_total: Number(r.income_total ?? 0),
+                fuel_total: Number(r.fuel_total ?? 0),
+                distance_total: Number(r.distance_total ?? 0),
                 expense_total: Number(r.expense_total ?? 0),
                 net: Number(r.net ?? 0),
             })
@@ -404,6 +547,8 @@ app.get("/api/reports/daily.xlsx", requireAdmin, async (req, res) => {
 
         ws.getColumn("day").numFmt = lang === "fr" ? "dd/mm/yyyy" : "mm/dd/yyyy"
         ws.getColumn("income_total").numFmt = "#,##0.00"
+        ws.getColumn("fuel_total").numFmt = "#,##0.00"
+        ws.getColumn("distance_total").numFmt = "#,##0.00"
         ws.getColumn("expense_total").numFmt = "#,##0.00"
         ws.getColumn("net").numFmt = "#,##0.00"
 
@@ -446,8 +591,8 @@ app.get("/api/expenses/:id", async (req, res) => {
 
 app.post("/api/expenses", requireAdmin, async (req, res) => {
     try {
-        const { expense_date, category, amount, notes } = req.body
-        const newExpense = await createExpense(expense_date, category ?? null, amount, notes ?? null)
+        const { expense_date, category, amount, notes, truck_label } = req.body
+        const newExpense = await createExpense(expense_date, category ?? null, amount, notes ?? null, truck_label ?? null)
         res.status(201).json(newExpense)
     } catch (error) {
         console.error(error)
@@ -458,8 +603,8 @@ app.post("/api/expenses", requireAdmin, async (req, res) => {
 app.put("/api/expenses/:id", requireAdmin, async (req, res) => {
     try {
         const id = Number(req.params.id)
-        const { expense_date, category, amount, notes } = req.body
-        const updated = await updateExpense(id, expense_date, category ?? null, amount, notes ?? null)
+        const { expense_date, category, amount, notes, truck_label } = req.body
+        const updated = await updateExpense(id, expense_date, category ?? null, amount, notes ?? null, truck_label ?? null)
         if (!updated) {
             return res.status(404).json({ error: "Expense not found" })
         }
@@ -484,6 +629,7 @@ app.delete("/api/expenses/:id", requireAdmin, async (req, res) => {
 })
 
 ensureAuthSchema()
+    .then(ensureOperationsSchema)
     .then(() => {
         app.listen(PORT, () => {
             console.log(`Server listening to port ${PORT}`)

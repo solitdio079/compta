@@ -4,10 +4,13 @@ import { format, parseISO, isValid } from "date-fns";
 import { enUS, fr } from "date-fns/locale";
 import { apiUrl } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
+import { formatMoney, formatNumber } from "~/lib/format";
 
 type ReportDay = {
   day: string;
   income_total: string;
+  fuel_total: string;
+  distance_total: string;
   expense_total: string;
   net: string;
 };
@@ -36,13 +39,6 @@ export default function DailyReportTable() {
     const d = parseISO(iso);
     if (!isValid(d)) return "";
     return format(d, "PP", { locale });
-  };
-
-  const formatMoney = (value: string) => {
-    const n = Number(value);
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-      Number.isFinite(n) ? n : 0
-    );
   };
 
   const load = async (m: string) => {
@@ -185,6 +181,8 @@ export default function DailyReportTable() {
                   <tr>
                     <th>{t("date")}</th>
                     <th>{t("dailyIncome")}</th>
+                    <th>{t("dailyFuel")}</th>
+                    <th>{t("dailyDistance")}</th>
                     <th>{t("dailyExpenses")}</th>
                     <th>{t("dailyNet")}</th>
                   </tr>
@@ -195,10 +193,12 @@ export default function DailyReportTable() {
                     return (
                       <tr key={d.day} className="hover">
                         <td>{formatDay(d.day)}</td>
-                        <td className="font-mono">{formatMoney(d.income_total)}</td>
-                        <td className="font-mono">{formatMoney(d.expense_total)}</td>
+                        <td className="font-mono">{formatMoney(d.income_total, language)}</td>
+                        <td className="font-mono">{formatMoney(d.fuel_total, language)}</td>
+                        <td className="font-mono">{formatNumber(d.distance_total, language)} km</td>
+                        <td className="font-mono">{formatMoney(d.expense_total, language)}</td>
                         <td className={net >= 0 ? "font-mono text-success" : "font-mono text-error"}>
-                          {formatMoney(d.net)}
+                          {formatMoney(d.net, language)}
                         </td>
                       </tr>
                     );
