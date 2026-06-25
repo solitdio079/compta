@@ -12,15 +12,16 @@ const I18nContext = createContext<I18nContextType | undefined>(undefined);
 const STORAGE_KEY = "compta-language";
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-    const [language, setLanguageState] = useState<Language>(() => {
+    const [language, setLanguageState] = useState<Language>("en");
+
+    useEffect(() => {
         if (typeof window !== "undefined") {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored === "en" || stored === "fr") {
-                return stored;
+                setLanguageState(stored);
             }
         }
-        return "en";
-    });
+    }, []);
 
     const setLanguage = (lang: Language) => {
         setLanguageState(lang);

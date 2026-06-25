@@ -46,8 +46,9 @@ export default function Login() {
         return;
       }
 
+      const user = await res.json();
       await refresh();
-      const redirectTo = params.get("redirectTo") || "/";
+      const redirectTo = params.get("redirectTo") || (user?.isAdmin ? "/admin" : "/");
       navigate(redirectTo);
     } catch {
       setError(t("loginFailed"));

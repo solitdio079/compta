@@ -181,7 +181,7 @@ export default function TripsTable() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div id="trips" className="container mx-auto px-4 py-8">
       <div className="bg-base-100 rounded-lg shadow-base-300/20 shadow-sm">
         <div className="bg-base-300/10 rounded-t-lg p-4 flex items-center gap-3">
           <span className="icon-[tabler--list] size-6 text-primary"></span>

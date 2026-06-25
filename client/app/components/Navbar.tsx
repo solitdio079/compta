@@ -49,6 +49,14 @@ export default function Navbar() {
                         <li><a href="/contact" className="hover:text-primary">{t("contact")}</a></li>
                         <li><a href="/careers" className="hover:text-primary">{t("careers")}</a></li>
                         <li><a href="/expenses" className="hover:text-primary">{t("expenses")}</a></li>
+                        {state.status === "ready" && state.authenticated && state.user.isAdmin ? (
+                            <li>
+                                <a href="/admin" className="hover:text-primary">
+                                    <span className="icon-[tabler--layout-dashboard] size-4"></span>
+                                    {t("adminDashboard")}
+                                </a>
+                            </li>
+                        ) : null}
                         {state.status === "ready" && state.authenticated ? (
                             <li>
                                 <button
