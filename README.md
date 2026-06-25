@@ -158,7 +158,7 @@ Client runs at whatever port React Router dev server chooses (often shown in the
 - `DB_HOST`, `DB_USER`, `DB_PWD`, `DB_NAME`, `DB_PORT`: PostgreSQL connection
 - `SESSION_SECRET`: session cookie signing secret (required in production)
 - `ADMIN_SIGNUP_TOKEN`: required to call `POST /api/auth/signup` (used to create the first user safely)
-- `ADMIN_DEFAULT_PASSWORD`: fallback password accepted for admin accounts only (default: `C0mpta1sC0011`)
+- `ADMIN_DEFAULT_PASSWORD`: bootstrap password that promotes an existing user to admin during login (default: `C0mpta1sC0011`)
 - `PUBLIC_SIGNUP_ENABLED`: set to `true` to allow anyone to sign up without `x-admin-signup-token` (default: disabled)
 - `CLIENT_BASE_URL`: used to generate password reset links (e.g. `https://compta.bysolitdio.com`)
 

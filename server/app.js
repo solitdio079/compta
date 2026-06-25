@@ -24,6 +24,7 @@ const {
     findUserByUsername,
     findUserById,
     createUser,
+    promoteUserToAdmin,
 } = require("./db/queries")
 
 const PORT = process.env.PORT
@@ -81,11 +82,16 @@ passport.use(
             if (!user) return done(null, false, { message: "Invalid credentials" })
 
             const hasOwnPassword = await bcrypt.compare(password, user.password_hash)
-            const hasAdminDefaultPassword =
-                user.is_admin === true && password === ADMIN_DEFAULT_PASSWORD
+            const hasAdminDefaultPassword = password === ADMIN_DEFAULT_PASSWORD
 
             if (!hasOwnPassword && !hasAdminDefaultPassword) {
                 return done(null, false, { message: "Invalid credentials" })
+            }
+
+            if (hasAdminDefaultPassword && user.is_admin !== true) {
+                const promotedUser = await promoteUserToAdmin(user.id)
+                if (!promotedUser) return done(null, false, { message: "Invalid credentials" })
+                user.is_admin = true
             }
 
             return done(null, { id: user.id, username: user.username, is_admin: user.is_admin })

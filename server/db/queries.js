@@ -234,6 +234,17 @@ async function createUser(username, passwordHash){
     return rows[0]
 }
 
+async function promoteUserToAdmin(id){
+    const { rows } = await pool.query(
+        `UPDATE conta_users
+         SET is_admin = true
+         WHERE id = $1
+         RETURNING id, username, is_admin`,
+        [id]
+    )
+    return rows[0]
+}
+
 module.exports={
     findAllTrips,
     createTrip,
@@ -248,5 +259,6 @@ module.exports={
     deleteExpense,
     findUserByUsername,
     findUserById,
-    createUser
+    createUser,
+    promoteUserToAdmin
 }
